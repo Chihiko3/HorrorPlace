@@ -202,7 +202,7 @@ public class FPC : MonoBehaviour
 
     private void HandleJump()
     {
-        if (ShouldJump)
+        if (ShouldJump && !isSliding /* = = I added !isSliding here, so player cannot jump when sliding*/ )
         {
             moveDirection.y = jumpForce;
         }
