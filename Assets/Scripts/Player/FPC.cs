@@ -23,14 +23,16 @@ public class FPC : MonoBehaviour
     [SerializeField] private bool canUseHeadbob = true;
     [SerializeField] private bool willSlideOnSlopes = true;
     [SerializeField] private bool canZoom = true;
+    [SerializeField] private bool canInteract = true;
 
     [Header("Controls")]
     // KeyCode is natually an enum, so good.
     // Notice that you can change them in the inspector.
     [SerializeField] private KeyCode sprintKey = KeyCode.LeftShift;
     [SerializeField] private KeyCode jumpKey = KeyCode.Space;
-    [SerializeField] private KeyCode crouchKey = KeyCode.Mouse0;
-    [SerializeField] private KeyCode zoomKey = KeyCode.Mouse1;
+    [SerializeField] private KeyCode crouchKey = KeyCode.Mouse1;
+    [SerializeField] private KeyCode zoomKey = KeyCode.LeftControl; // Won't be used in this game cuz the shader doesn't fit.
+    [SerializeField] private KeyCode interactKey = KeyCode.Mouse0;
 
     [Header("Movement Parameters")]
     [SerializeField] private float walkSpeed = 3.0f;
@@ -98,6 +100,15 @@ public class FPC : MonoBehaviour
         }
     }
 
+    [Header("Interaction")]
+    [SerializeField] private Vector3 interactionRayPoint = default;
+    [SerializeField] private float interactionDistance = default;
+    [SerializeField] private LayerMask interactionLayer = default;
+
+    // So we can call the abstract script
+    private InteractableTemplate currentInteractable;
+
+
     private Camera playerCamera;
     private CharacterController characterController;
 
@@ -141,6 +152,12 @@ public class FPC : MonoBehaviour
             if (canZoom)
             {
                 HandleZoom();
+            }
+
+            if (canInteract)
+            {
+                HandleInteractionCheck();
+                HandleInteractionInput();
             }
 
             ApplyFinalMovements();
@@ -219,8 +236,6 @@ public class FPC : MonoBehaviour
                 defaultYPos + Mathf.Sin(timer) * (isCrouching ? crouchAmount : IsSprinting ? sprintBobAmount : walkBobAmount),
                 playerCamera.transform.localPosition.z);
         }
-
-
     }
 
     private void HandleZoom()
@@ -232,9 +247,7 @@ public class FPC : MonoBehaviour
                 StopCoroutine(zoomRoutine);
                 zoomRoutine = null;
             }
-
             zoomRoutine = StartCoroutine(ToggleZoom(true));
-
         }
 
         if (Input.GetKeyUp(zoomKey))
@@ -244,8 +257,39 @@ public class FPC : MonoBehaviour
                 StopCoroutine(zoomRoutine);
                 zoomRoutine = null;
             }
-
             zoomRoutine = StartCoroutine(ToggleZoom(false));
+        }
+    }
+
+    private void HandleInteractionCheck()
+    {
+        // if we haven't focus on anything before
+        if (Physics.Raycast(playerCamera.ViewportPointToRay(interactionRayPoint), out RaycastHit hit, interactionDistance))
+        {
+            // if we watch something that is layer 9, and we haven't watched any interactable thing before or we are watching a different interactable thing, then we get the current component.
+            if (hit.collider.gameObject.layer ==9 && (currentInteractable == null || hit.collider.gameObject.GetInstanceID() != currentInteractable.GetInstanceID()))
+            {
+                hit.collider.TryGetComponent(out currentInteractable);
+
+                if (currentInteractable)
+                {
+                    currentInteractable.OnFocus();
+                }
+            }
+        }
+        // we have focused on something before but now we do not focus on it, we call it lose focus.
+        else if (currentInteractable)
+        {
+            currentInteractable.OnLoseFocus();
+            currentInteractable = null;
+        }
+    }
+
+    private void HandleInteractionInput()
+    {
+        if (Input.GetKeyDown(interactKey) && currentInteractable != null && Physics.Raycast(playerCamera.ViewportPointToRay(interactionRayPoint), out RaycastHit hit, interactionDistance, interactionLayer))
+        {
+            currentInteractable.OnInteract();
         }
     }
 
