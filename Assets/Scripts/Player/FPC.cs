@@ -21,13 +21,16 @@ public class FPC : MonoBehaviour
     [SerializeField] private bool canJump = true;
     [SerializeField] private bool canCrouch = true;
     [SerializeField] private bool canUseHeadbob = true;
-    [SerializeField] private bool WillSlideOnSlopes = true;
+    [SerializeField] private bool willSlideOnSlopes = true;
+    [SerializeField] private bool canZoom = true;
 
     [Header("Controls")]
     // KeyCode is natually an enum, so good.
+    // Notice that you can change them in the inspector.
     [SerializeField] private KeyCode sprintKey = KeyCode.LeftShift;
     [SerializeField] private KeyCode jumpKey = KeyCode.Space;
-    [SerializeField] private KeyCode crouchKey = KeyCode.LeftControl;
+    [SerializeField] private KeyCode crouchKey = KeyCode.Mouse0;
+    [SerializeField] private KeyCode zoomKey = KeyCode.Mouse1;
 
     [Header("Movement Parameters")]
     [SerializeField] private float walkSpeed = 3.0f;
@@ -63,6 +66,13 @@ public class FPC : MonoBehaviour
     [SerializeField] private float crouchAmount = 0.025f;
     private float defaultYPos = 0;
     private float timer;
+
+    [Header("Zoom Parameters")]
+    [SerializeField] private float timeToZoom = 0.3f;
+    [SerializeField] private float zoomFOV = 30f;
+    private float defaultFOV;
+    private Coroutine zoomRoutine;
+
 
     // SLIDING PARAMETERS BELOW
 
@@ -101,6 +111,7 @@ public class FPC : MonoBehaviour
         playerCamera = GetComponentInChildren<Camera>();
         characterController = GetComponent<CharacterController>();
         defaultYPos = playerCamera.transform.localPosition.y;
+        defaultFOV = playerCamera.fieldOfView;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -125,6 +136,11 @@ public class FPC : MonoBehaviour
             if (canUseHeadbob)
             {
                 HandleHeadbob();
+            }
+
+            if (canZoom)
+            {
+                HandleZoom();
             }
 
             ApplyFinalMovements();
@@ -174,7 +190,6 @@ public class FPC : MonoBehaviour
             moveDirection.y = jumpForce;
         }
     }
-
     private void HandleCrouch()
     {
         // should notice that when ShouldCrouch == true, we are actually pressing the crouch button!
@@ -208,6 +223,31 @@ public class FPC : MonoBehaviour
 
     }
 
+    private void HandleZoom()
+    {
+        if (Input.GetKeyDown(zoomKey))
+        {
+            if (zoomRoutine != null)
+            {
+                StopCoroutine(zoomRoutine);
+                zoomRoutine = null;
+            }
+
+            zoomRoutine = StartCoroutine(ToggleZoom(true));
+
+        }
+
+        if (Input.GetKeyUp(zoomKey))
+        {
+            if (zoomRoutine != null)
+            {
+                StopCoroutine(zoomRoutine);
+                zoomRoutine = null;
+            }
+
+            zoomRoutine = StartCoroutine(ToggleZoom(false));
+        }
+    }
 
     // apply those calculations that we did in HandleMovementInput().
     // the reason why we split them into two methods is that we are using CharacterController component,
@@ -221,7 +261,7 @@ public class FPC : MonoBehaviour
             moveDirection.y -= gravity * Time.deltaTime;
         }
 
-        if (WillSlideOnSlopes && isSliding)
+        if (willSlideOnSlopes && isSliding)
         {
             moveDirection += new Vector3(hitpointNormal.x, -hitpointNormal.y, hitpointNormal.z) * slopeSpeed;
         }
@@ -266,5 +306,22 @@ public class FPC : MonoBehaviour
         isCrouching = !isCrouching;
 
         duringCrouchAnimation = false;
+    }
+
+    private IEnumerator ToggleZoom(bool isEnter)
+    {
+        float targetFOV = isEnter ? zoomFOV : defaultFOV;
+        float startingFOV = playerCamera.fieldOfView;
+        float timeElasped = 0;
+
+        while(timeElasped < timeToZoom)
+        {
+            playerCamera.fieldOfView = Mathf.Lerp(startingFOV, targetFOV, timeElasped / timeToZoom);
+            timeElasped += Time.deltaTime;
+            yield return null;
+        }
+
+        playerCamera.fieldOfView = targetFOV;
+        zoomRoutine = null;
     }
 }
