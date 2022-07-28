@@ -29,6 +29,7 @@ public class FPC : MonoBehaviour
     [SerializeField] private bool canZoom = true;
     [SerializeField] private bool canInteract = true;
     [SerializeField] private bool useFootsteps = true;
+    [SerializeField] private bool useStamina = true;
 
     [Header("Controls")]
     // KeyCode is natually an enum, so good.
@@ -44,6 +45,18 @@ public class FPC : MonoBehaviour
     [SerializeField] private float sprintSpeed = 5.0f;
     [SerializeField] private float crouchSpeed = 2.0f;
     [SerializeField] private float slopeSpeed = 8f;
+
+    [Header("Stamina Parameters")]
+    [SerializeField] private float maxStamina = 100;
+    [SerializeField] private float staminaUseMultiplier = 5;
+    [SerializeField] private float staminaUseMultiplierCrouch = 2.5f;
+    [SerializeField] private float timeBeforeStaminaRegenStarts = 5;
+    [SerializeField] private float staminaValueIncrement = 2;
+    [SerializeField] private float staminaTimeIncrement = 0.1f;
+    private float currentStamina;
+    private Coroutine regeneratingStamina;
+    public static Action<float> OnStaminaChange;
+
 
     [Header("Look Parameters")]
     [SerializeField, Range(1, 10)] private float lookSpeedX = 2.0f;
@@ -164,6 +177,7 @@ public class FPC : MonoBehaviour
         defaultYPos = playerCamera.transform.localPosition.y;
         defaultFOV = playerCamera.fieldOfView;
         currentHealth = maxHealth;
+        currentStamina = maxStamina;
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -205,6 +219,11 @@ public class FPC : MonoBehaviour
             {
                 HandleInteractionCheck();
                 HandleInteractionInput();
+            }
+
+            if (useStamina)
+            {
+                HandleStamina();
             }
 
             ApplyFinalMovements();
@@ -282,6 +301,47 @@ public class FPC : MonoBehaviour
                 playerCamera.transform.localPosition.x /* +(Mathf.Sin(timer) * (isCrouching ? crouchAmount : IsSprinting ? sprintBobAmount : walkBobAmount))/50f */, 
                 defaultYPos + Mathf.Sin(timer) * (isCrouching ? crouchAmount : IsSprinting ? sprintBobAmount : walkBobAmount),
                 playerCamera.transform.localPosition.z);
+        }
+    }
+
+    private void HandleStamina()
+    {
+        if (IsSprinting && currentInput != Vector2.zero)
+        {
+            // this "if" is used to stop regen stamina at the time player just in sprint so avoid some strange situations.
+            if (regeneratingStamina != null)
+            {
+                StopCoroutine(regeneratingStamina);
+                regeneratingStamina = null;
+            }
+
+            // I personally added this to differenciate those 2 situations.
+            if (isCrouching)
+            {
+                currentStamina -= staminaUseMultiplierCrouch * Time.deltaTime;
+            }
+            else
+            {
+                currentStamina -= staminaUseMultiplier * Time.deltaTime;
+            }
+
+
+            if (currentStamina < 0)
+            {
+                currentStamina = 0;
+            }
+
+            OnStaminaChange?.Invoke(currentStamina);
+
+            if (currentStamina <= 0)
+            {
+                canSprint = false;
+            }
+        }
+
+        if (!IsSprinting && currentStamina < maxStamina && regeneratingStamina == null)
+        {
+            regeneratingStamina = StartCoroutine(RegenerateStamina());
         }
     }
 
@@ -515,4 +575,33 @@ public class FPC : MonoBehaviour
 
         regenerateingHealth = null;
     }
+
+    // Coroutine to generate stamina
+    private IEnumerator RegenerateStamina()
+    {
+        yield return new WaitForSeconds(timeBeforeStaminaRegenStarts);
+        WaitForSeconds timeToWait = new WaitForSeconds(staminaTimeIncrement);
+
+        while (currentStamina < maxStamina)
+        {
+            if (currentStamina > 0)
+            {
+                canSprint = true;
+            }
+
+            currentStamina += staminaValueIncrement;
+
+            if (currentStamina > maxStamina)
+            {
+                currentStamina = maxStamina;
+            }
+
+            OnStaminaChange?.Invoke(currentStamina);
+
+            yield return timeToWait;
+        }
+
+        regeneratingStamina = null;
+    }
+
 }
