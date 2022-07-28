@@ -1,6 +1,10 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using Random = UnityEngine.Random;
+using Cursor = UnityEngine.Cursor;
 
 public class FPC : MonoBehaviour
 {
@@ -25,6 +29,7 @@ public class FPC : MonoBehaviour
     [SerializeField] private bool canZoom = true;
     [SerializeField] private bool canInteract = true;
     [SerializeField] private bool useFootsteps = true;
+    [SerializeField] private bool useStamina = true;
 
     [Header("Controls")]
     // KeyCode is natually an enum, so good.
@@ -41,11 +46,35 @@ public class FPC : MonoBehaviour
     [SerializeField] private float crouchSpeed = 2.0f;
     [SerializeField] private float slopeSpeed = 8f;
 
+    [Header("Stamina Parameters")]
+    [SerializeField] private float maxStamina = 100;
+    [SerializeField] private float staminaUseMultiplier = 5;
+    [SerializeField] private float staminaUseMultiplierCrouch = 2.5f;
+    [SerializeField] private float timeBeforeStaminaRegenStarts = 5;
+    [SerializeField] private float staminaValueIncrement = 2;
+    [SerializeField] private float staminaTimeIncrement = 0.1f;
+    private float currentStamina;
+    private Coroutine regeneratingStamina;
+    public static Action<float> OnStaminaChange;
+
+
     [Header("Look Parameters")]
     [SerializeField, Range(1, 10)] private float lookSpeedX = 2.0f;
     [SerializeField, Range(1, 10)] private float lookSpeedY = 2.0f;
     [SerializeField, Range(1, 180)] private float upperLookLimit = 80.0f;
     [SerializeField, Range(1, 180)] private float lowerLookLimit = 80.0f;
+
+    [Header("Health Parameters")]
+    [SerializeField] private float maxHealth = 100;
+    [SerializeField] private float timeBeforeRegenStarts = 3;
+    [SerializeField] private float healthValueIncrement = 1;
+    [SerializeField] private float healthTimeIncrement = 0.1f;
+    private float currentHealth;
+    private Coroutine regenerateingHealth;
+    // below are about dmg actions
+    public static Action<float> OnTakeDamage;
+    public static Action<float> OnDamage;
+    public static Action<float> OnHeal;
 
     [Header("Jumping Parameters")]
     [SerializeField] private float jumpForce = 8.0f;
@@ -82,7 +111,7 @@ public class FPC : MonoBehaviour
     [SerializeField] private float sprintStepMultipler = 0.6f;
     // set to default so we won't get warnning in console.
     [SerializeField] private AudioSource footstepAudioSource = default;
-    [SerializeField] private AudioClip[] woodClips = default;
+    [SerializeField] private AudioClip[] concreteClips = default;
     [SerializeField] private AudioClip[] metalClips = default;
     [SerializeField] private AudioClip[] grassClips = default;
     private float footstepTimer = 0;
@@ -130,12 +159,26 @@ public class FPC : MonoBehaviour
 
     private float rotationX = 0;
 
+    private void OnEnable()
+    {
+        // += in here means "call or subscribe"
+        OnTakeDamage += ApplyDamage;
+    }
+
+    private void OnDisable()
+    {
+        OnTakeDamage -= ApplyDamage;
+    }
+
     void Awake()
     {
         playerCamera = GetComponentInChildren<Camera>();
         characterController = GetComponent<CharacterController>();
         defaultYPos = playerCamera.transform.localPosition.y;
         defaultFOV = playerCamera.fieldOfView;
+        currentHealth = maxHealth;
+        currentStamina = maxStamina;
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -176,6 +219,11 @@ public class FPC : MonoBehaviour
             {
                 HandleInteractionCheck();
                 HandleInteractionInput();
+            }
+
+            if (useStamina)
+            {
+                HandleStamina();
             }
 
             ApplyFinalMovements();
@@ -256,6 +304,47 @@ public class FPC : MonoBehaviour
         }
     }
 
+    private void HandleStamina()
+    {
+        if (IsSprinting && currentInput != Vector2.zero)
+        {
+            // this "if" is used to stop regen stamina at the time player just in sprint so avoid some strange situations.
+            if (regeneratingStamina != null)
+            {
+                StopCoroutine(regeneratingStamina);
+                regeneratingStamina = null;
+            }
+
+            // I personally added this to differenciate those 2 situations.
+            if (isCrouching)
+            {
+                currentStamina -= staminaUseMultiplierCrouch * Time.deltaTime;
+            }
+            else
+            {
+                currentStamina -= staminaUseMultiplier * Time.deltaTime;
+            }
+
+
+            if (currentStamina < 0)
+            {
+                currentStamina = 0;
+            }
+
+            OnStaminaChange?.Invoke(currentStamina);
+
+            if (currentStamina <= 0)
+            {
+                canSprint = false;
+            }
+        }
+
+        if (!IsSprinting && currentStamina < maxStamina && regeneratingStamina == null)
+        {
+            regeneratingStamina = StartCoroutine(RegenerateStamina());
+        }
+    }
+
     private void HandleZoom()
     {
         if (Input.GetKeyDown(zoomKey))
@@ -330,8 +419,8 @@ public class FPC : MonoBehaviour
             {
                 switch (hit.collider.tag)
                 {
-                    case "Footsteps/WOOD":
-                        footstepAudioSource.PlayOneShot(woodClips[Random.Range(0, woodClips.Length - 1)]);
+                    case "Footsteps/Concrete":
+                        footstepAudioSource.PlayOneShot(concreteClips[Random.Range(0, concreteClips.Length - 1)]);
                         break;
                     case "Footsteps/METAL":
                         footstepAudioSource.PlayOneShot(metalClips[Random.Range(0, metalClips.Length - 1)]);
@@ -340,13 +429,48 @@ public class FPC : MonoBehaviour
                         footstepAudioSource.PlayOneShot(grassClips[Random.Range(0, grassClips.Length - 1)]);
                         break;
                     default:
-                        footstepAudioSource.PlayOneShot(woodClips[Random.Range(0, woodClips.Length - 1)]);
+                        footstepAudioSource.PlayOneShot(concreteClips[Random.Range(0, concreteClips.Length - 1)]);
                         break;
                 }
             }
-            // actually we just select a positive number about footstep = =
+            // actually we just select a positive number related to footstep = =
             footstepTimer = GetCurrentOffset;
         }
+    }
+
+    private void ApplyDamage(float dmg)
+    {
+        currentHealth -= dmg;
+
+        // the ?.Invoke() make this code more safe because even if there is no one listen to OnDamage, there should be no error now.
+        // and the data in the () will be sent to the receiver, so you dont need to code other things to get it.
+        OnDamage?.Invoke(currentHealth);
+
+        if (currentHealth <= 0)
+        {
+            KillPlayer();
+        }
+        
+        else if (regenerateingHealth != null)
+        
+        {
+            StopCoroutine(regenerateingHealth);
+
+            regenerateingHealth = StartCoroutine(RegeneratingHealth());
+        }
+    }
+
+    // apply when currentHealth = 0;
+    private void KillPlayer()
+    {
+        currentHealth = 0;
+
+        if (regenerateingHealth != null)
+        {
+            StopCoroutine(regenerateingHealth);
+        }
+
+        SceneManager.LoadScene("TestField", LoadSceneMode.Single);
     }
 
     // apply those calculations that we did in HandleMovementInput().
@@ -431,4 +555,53 @@ public class FPC : MonoBehaviour
         playerCamera.fieldOfView = targetFOV;
         zoomRoutine = null;
     }
+
+    private IEnumerator RegeneratingHealth()
+    {
+        yield return new WaitForSeconds(timeBeforeRegenStarts);
+        WaitForSeconds timeTowait = new WaitForSeconds(healthTimeIncrement);
+
+        while(currentHealth < maxHealth)
+        {
+            currentHealth += healthValueIncrement;
+
+            if (currentHealth > maxHealth)
+            {
+                currentHealth = maxHealth;
+            }
+            OnHeal?.Invoke(currentHealth);
+            yield return timeTowait;
+        }
+
+        regenerateingHealth = null;
+    }
+
+    // Coroutine to generate stamina
+    private IEnumerator RegenerateStamina()
+    {
+        yield return new WaitForSeconds(timeBeforeStaminaRegenStarts);
+        WaitForSeconds timeToWait = new WaitForSeconds(staminaTimeIncrement);
+
+        while (currentStamina < maxStamina)
+        {
+            if (currentStamina > 0)
+            {
+                canSprint = true;
+            }
+
+            currentStamina += staminaValueIncrement;
+
+            if (currentStamina > maxStamina)
+            {
+                currentStamina = maxStamina;
+            }
+
+            OnStaminaChange?.Invoke(currentStamina);
+
+            yield return timeToWait;
+        }
+
+        regeneratingStamina = null;
+    }
+
 }
