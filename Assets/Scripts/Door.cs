@@ -55,4 +55,15 @@ public class Door : InteractableTemplate
             }
         }
     }
+
+    // be used in the animation "add EVENT" to make object not interactable during animation
+    private void Animator_LockInteraction()
+    {
+        canBeInteractedWith = false;
+    }
+
+    private void Animator_UnlockInteraction()
+    {
+        canBeInteractedWith = true;
+    }
 }
