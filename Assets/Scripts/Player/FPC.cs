@@ -159,6 +159,9 @@ public class FPC : MonoBehaviour
 
     private float rotationX = 0;
 
+    // used in door scripts
+    public static FPC instance;
+
     private void OnEnable()
     {
         // += in here means "call or subscribe"
@@ -172,6 +175,8 @@ public class FPC : MonoBehaviour
 
     void Awake()
     {
+        // used in door scripts;
+        instance = this;
         playerCamera = GetComponentInChildren<Camera>();
         characterController = GetComponent<CharacterController>();
         defaultYPos = playerCamera.transform.localPosition.y;
