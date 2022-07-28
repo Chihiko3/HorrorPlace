@@ -24,6 +24,7 @@ public class FPC : MonoBehaviour
     [SerializeField] private bool willSlideOnSlopes = true;
     [SerializeField] private bool canZoom = true;
     [SerializeField] private bool canInteract = true;
+    [SerializeField] private bool useFootsteps = true;
 
     [Header("Controls")]
     // KeyCode is natually an enum, so good.
@@ -74,6 +75,18 @@ public class FPC : MonoBehaviour
     [SerializeField] private float zoomFOV = 30f;
     private float defaultFOV;
     private Coroutine zoomRoutine;
+
+    [Header("Footstep Parameters")]
+    [SerializeField] private float baseStepSpeed = 0.5f;
+    [SerializeField] private float crouchStepMultipler = 1.5f;
+    [SerializeField] private float sprintStepMultipler = 0.6f;
+    // set to default so we won't get warnning in console.
+    [SerializeField] private AudioSource footstepAudioSource = default;
+    [SerializeField] private AudioClip[] woodClips = default;
+    [SerializeField] private AudioClip[] metalClips = default;
+    [SerializeField] private AudioClip[] grassClips = default;
+    private float footstepTimer = 0;
+    private float GetCurrentOffset => isCrouching ? baseStepSpeed * crouchStepMultipler : IsSprinting ? baseStepSpeed * sprintStepMultipler : baseStepSpeed;
 
 
     // SLIDING PARAMETERS BELOW
@@ -152,6 +165,11 @@ public class FPC : MonoBehaviour
             if (canZoom)
             {
                 HandleZoom();
+            }
+
+            if (useFootsteps)
+            {
+                Handle_Footsteps();
             }
 
             if (canInteract)
@@ -290,6 +308,44 @@ public class FPC : MonoBehaviour
         if (Input.GetKeyDown(interactKey) && currentInteractable != null && Physics.Raycast(playerCamera.ViewportPointToRay(interactionRayPoint), out RaycastHit hit, interactionDistance, interactionLayer))
         {
             currentInteractable.OnInteract();
+        }
+    }
+
+    private void Handle_Footsteps()
+    {
+        if (!characterController.isGrounded)
+        {
+            return;
+        }
+        if (currentInput == Vector2.zero)
+        {
+            return;
+        }
+
+        footstepTimer -= Time.deltaTime;
+
+        if (footstepTimer <= 0)
+        {
+            if (Physics.Raycast(playerCamera.transform.position, Vector3.down, out RaycastHit hit, 3f))
+            {
+                switch (hit.collider.tag)
+                {
+                    case "Footsteps/WOOD":
+                        footstepAudioSource.PlayOneShot(woodClips[Random.Range(0, woodClips.Length - 1)]);
+                        break;
+                    case "Footsteps/METAL":
+                        footstepAudioSource.PlayOneShot(metalClips[Random.Range(0, metalClips.Length - 1)]);
+                        break;
+                    case "Footsteps/GRASS":
+                        footstepAudioSource.PlayOneShot(grassClips[Random.Range(0, grassClips.Length - 1)]);
+                        break;
+                    default:
+                        footstepAudioSource.PlayOneShot(woodClips[Random.Range(0, woodClips.Length - 1)]);
+                        break;
+                }
+            }
+            // actually we just select a positive number about footstep = =
+            footstepTimer = GetCurrentOffset;
         }
     }
 
