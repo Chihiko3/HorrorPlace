@@ -6,7 +6,7 @@ TagManager:
   tags:
   - Footsteps/GRASS
   - Footsteps/METAL
-  - Footsteps/WOOD
+  - Footsteps/CONCRETE
   layers:
   - Default
   - TransparentFX
