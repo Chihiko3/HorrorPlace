@@ -305,6 +305,13 @@ public class FPC : MonoBehaviour
             moveDirection.y -= gravity * Time.deltaTime;
         }
 
+        // added it later to fix a problem that if you repeatedly falling off heights your velocity.y will be huge to make you fall instantly.
+        if (characterController.velocity.y < -1 && characterController.isGrounded)
+        {
+            moveDirection.y = 0;
+        }
+
+        // if you are falling
         if (willSlideOnSlopes && isSliding)
         {
             moveDirection += new Vector3(hitpointNormal.x, -hitpointNormal.y, hitpointNormal.z) * slopeSpeed;
