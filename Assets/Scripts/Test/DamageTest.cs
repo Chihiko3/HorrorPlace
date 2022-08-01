@@ -8,7 +8,7 @@ public class DamageTest : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            FPC.OnTakeDamage(50);
+            FPC.OnTakeDamage(100);
         }
     }
 }

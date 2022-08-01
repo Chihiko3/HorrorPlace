@@ -475,7 +475,7 @@ public class FPC : MonoBehaviour
             StopCoroutine(regenerateingHealth);
         }
 
-        SceneManager.LoadScene("TestField", LoadSceneMode.Single);
+        SceneManager.LoadScene("GameField", LoadSceneMode.Single);
     }
 
     // apply those calculations that we did in HandleMovementInput().
