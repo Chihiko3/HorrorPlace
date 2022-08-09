@@ -36,9 +36,10 @@ public class FPC : MonoBehaviour
     // Notice that you can change them in the inspector.
     [SerializeField] private KeyCode sprintKey = KeyCode.LeftShift;
     [SerializeField] private KeyCode jumpKey = KeyCode.Space;
-    [SerializeField] private KeyCode crouchKey = KeyCode.Mouse1;
+    [SerializeField] private KeyCode crouchKey = KeyCode.C;
     [SerializeField] private KeyCode zoomKey = KeyCode.LeftControl; // Won't be used in this game cuz the shader doesn't fit.
-    [SerializeField] private KeyCode interactKey = KeyCode.Mouse0;
+    [SerializeField] private KeyCode interactKey = KeyCode.Mouse1;
+    [SerializeField] private KeyCode resizeKey = KeyCode.Mouse0;
 
     [Header("Movement Parameters")]
     [SerializeField] private float walkSpeed = 3.0f;
@@ -142,6 +143,17 @@ public class FPC : MonoBehaviour
         }
     }
 
+    // need simplify
+    [Header("Resize")]
+    [SerializeField] private Transform target; // The target object we picked up for scaling
+    [SerializeField] private LayerMask ignoreMaskDuringResizing;
+    [SerializeField] float offsetFactor; // The offset amount for positioning the object so it doesn't clip into walls
+
+    private float originalDistance; // The original distance between the player camera and the target
+    private float originalScale; // The original scale of the target objects prior to being resized
+    private Vector3 targetScale; // The scale we want our object to be set to each frame
+
+
     [Header("Interaction")]
     [SerializeField] private Vector3 interactionRayPoint = default;
     [SerializeField] private float interactionDistance = default;
@@ -224,6 +236,8 @@ public class FPC : MonoBehaviour
             {
                 HandleInteractionCheck();
                 HandleInteractionInput();
+                HandleResizeInput();
+                HandleResize();
             }
 
             if (useStamina)
@@ -267,7 +281,7 @@ public class FPC : MonoBehaviour
 
         // horizontal mouse look is much easier than vertical one, we just make it smoothy by adding Quaternion.
         // notice that we are directly changing the character's rotation here cuz this is a first person view
-        // so if we do not need the headbob or something like that, we do not need to rotate the camera.
+        // we do not need to rotate the camera.
         transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeedX, 0);
     }
 
@@ -374,12 +388,13 @@ public class FPC : MonoBehaviour
     }
 
     private void HandleInteractionCheck()
+        // used to handle focus or not
     {
         // if we haven't focus on anything before
         if (Physics.Raycast(playerCamera.ViewportPointToRay(interactionRayPoint), out RaycastHit hit, interactionDistance))
         {
             // if we watch something that is layer 9, and we haven't watched any interactable thing before or we are watching a different interactable thing, then we get the current component.
-            if (hit.collider.gameObject.layer ==9 && (currentInteractable == null || hit.collider.gameObject.GetInstanceID() != currentInteractable.GetInstanceID()))
+            if (hit.collider.gameObject.layer == 9 && (currentInteractable == null || hit.collider.gameObject.GetInstanceID() != currentInteractable.GetInstanceID()))
             {
                 hit.collider.TryGetComponent(out currentInteractable);
 
@@ -401,7 +416,80 @@ public class FPC : MonoBehaviour
     {
         if (Input.GetKeyDown(interactKey) && currentInteractable != null && Physics.Raycast(playerCamera.ViewportPointToRay(interactionRayPoint), out RaycastHit hit, interactionDistance, interactionLayer))
         {
+
             currentInteractable.OnInteract();
+        }
+    }
+
+    private void HandleResizeInput()
+    {
+        // Check for right mouse click
+        if (Input.GetKeyDown(resizeKey))
+        {
+            // If we do not currently have a target, we catch it
+            if (target == null)
+            {
+                // Fire a raycast with the layer mask that only hits potential targets
+
+                if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out RaycastHit hit, Mathf.Infinity, interactionLayer))
+                {
+                    // Set our target variable to be the Transform object we hit with our raycast
+                    target = hit.transform;
+
+                    // Disable physics for the object
+                    target.GetComponent<Rigidbody>().isKinematic = true;
+
+                    // Calculate the distance between the camera and the object
+                    originalDistance = Vector3.Distance(playerCamera.transform.position, target.position);
+
+                    // Save the original scale of the object into our originalScale Vector3 variabble
+                    originalScale = target.localScale.x;
+
+                    // Set our target scale to be the same as the original for the time being
+                    targetScale = target.localScale;
+                }
+            }
+            // If we DO have a target, we release it
+            else
+            {
+                // Reactivate physics for the target object
+                target.GetComponent<Rigidbody>().isKinematic = false;
+
+                // Set our target variable to null
+                target = null;
+            }
+        }
+    }
+
+    private void HandleResize()
+    {
+        // If our target is null
+        if (target == null)
+        {
+            // Return from this method, nothing to do here
+            return;
+        }
+
+        // Cast a ray forward from the camera position, ignore the layer that is used to acquire targets
+        // so we don't hit the attached target with our ray
+
+        if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out RaycastHit hit, Mathf.Infinity, ignoreMaskDuringResizing))
+        {
+            // Set the new position of the target by getting the hit point and moving it back a bit
+            // depending on the scale and offset factor
+            target.position = hit.point - playerCamera.transform.forward * offsetFactor * targetScale.x;
+
+            // Calculate the current distance between the camera and the target object
+            float currentDistance = Vector3.Distance(playerCamera.transform.position, target.position);
+
+            // Calculate the ratio between the current distance and the original distance
+            float s = currentDistance / originalDistance;
+
+            // Set the scale Vector3 variable to be the ratio of the distances
+            targetScale.x = targetScale.y = targetScale.z = s;
+
+            // Set the scale for the target objectm, multiplied by the original scale
+            target.localScale = targetScale * originalScale;
         }
     }
 
