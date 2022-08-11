@@ -247,10 +247,11 @@ public class FPC : MonoBehaviour
         float moveDirectionY = moveDirection.y;
 
         // make the movement worldly, notice the moveDirection is a Vector3. So when we handle the horizontal movings, we should use Vector3.right.
-        moveDirection = (transform.TransformDirection(Vector3.forward) * currentInput.x) + (transform.TransformDirection(Vector3.right) * currentInput.y);
+        moveDirection = (transform.TransformDirection((Vector3.forward) * currentInput.x) + (transform.TransformDirection(Vector3.right) * currentInput.y));
 
         // ?restore the moveDirection.y here so we won't float in the sky or fly I guess.
         moveDirection.y = moveDirectionY;
+
     }
 
     private void HandleMouseLook()
@@ -504,6 +505,7 @@ public class FPC : MonoBehaviour
 
         // move the character with data in other methods
         // and this is also a convinent way that CharacterController Component provides us.
+
         characterController.Move(moveDirection * Time.deltaTime);
     }
 
