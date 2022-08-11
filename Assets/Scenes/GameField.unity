@@ -1454,7 +1454,7 @@ MonoBehaviour:
   zoomKey: 306
   interactKey: 323
   walkSpeed: 3
-  sprintSpeed: 6
+  sprintSpeed: 5
   crouchSpeed: 2
   slopeSpeed: 8
   maxStamina: 100
@@ -48030,7 +48030,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f291a806e979c9a46a98628246419a3a, type: 2}
+  - {fileID: 2100000, guid: 983c52e1e2bf37e478f9c9609feba7e8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
