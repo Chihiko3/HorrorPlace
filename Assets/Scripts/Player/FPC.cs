@@ -247,7 +247,7 @@ public class FPC : MonoBehaviour
         float moveDirectionY = moveDirection.y;
 
         // make the movement worldly, notice the moveDirection is a Vector3. So when we handle the horizontal movings, we should use Vector3.right.
-        moveDirection = (transform.TransformDirection((Vector3.forward) * currentInput.x) + (transform.TransformDirection(Vector3.right) * currentInput.y));
+        moveDirection = Vector3.ClampMagnitude((transform.TransformDirection(Vector3.forward) * currentInput.x) + (transform.TransformDirection(Vector3.right) * currentInput.y), isCrouching ? crouchSpeed : IsSprinting ? sprintSpeed : walkSpeed);
 
         // ?restore the moveDirection.y here so we won't float in the sky or fly I guess.
         moveDirection.y = moveDirectionY;
