@@ -505,7 +505,7 @@ public class FPC : MonoBehaviour
 
         // move the character with data in other methods
         // and this is also a convinent way that CharacterController Component provides us.
-
+        
         characterController.Move(moveDirection * Time.deltaTime);
     }
 
