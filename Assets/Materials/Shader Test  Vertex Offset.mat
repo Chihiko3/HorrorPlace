@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Shader Test
-  m_Shader: {fileID: 4800000, guid: f000aeefccd33b14083f0bdfb80dfb67, type: 3}
+  m_Name: Shader Test  Vertex Offset
+  m_Shader: {fileID: 4800000, guid: 43d7b2be056851b4e92ee0087c90157f, type: 3}
   m_ValidKeywords: []
   m_InvalidKeywords:
   - _EMISSION
@@ -70,7 +70,7 @@ Material:
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
-    - _Offset: 0
+    - _Offset: 0.2
     - _Parallax: 0.02
     - _Scale: 1
     - _SmoothnessTextureChannel: 0
@@ -78,10 +78,11 @@ Material:
     - _SrcBlend: 1
     - _StartPoint: 0
     - _UVSec: 0
+    - _WaveAmp: 0.008
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 0.13510147, g: 0.34801602, b: 0.8679245, a: 1}
-    - _ColorA: {r: 0.3254717, g: 0.7842711, b: 1, a: 1}
-    - _ColorB: {r: 1, g: 0, b: 0.46176243, a: 1}
+    - _Color: {r: 0.9339623, g: 0.18062477, b: 0.18062477, a: 1}
+    - _ColorA: {r: 0.38523877, g: 1, b: 0.0990566, a: 1}
+    - _ColorB: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0.24528301, g: 0.16949546, b: 0.15619437, a: 1}
   m_BuildTextureStacks: []

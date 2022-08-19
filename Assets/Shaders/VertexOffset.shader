@@ -1,4 +1,4 @@
-Shader "Unlit/ShaderTest"
+Shader "Unlit/VertexOffset"
 {
     Properties
     {
@@ -6,23 +6,20 @@ Shader "Unlit/ShaderTest"
         _ColorB("Color", Color) = (1,1,1,1)
         _StartPoint("Start Point", Range(0, 1)) = 0
         _EndPoint("End Point", Range(0, 1)) = 1
+        _WaveAmp("Wave Amplitude", Range(0, 0.2)) = 0.1
     }
 
     SubShader
     {
         Tags 
         { 
-            "RenderType"="Transparent"  // tag to inform the render pipeline of what ype this is 
-            "Queue"="Transparent" // changes the render order
+            "RenderType"="Opaque"  // tag to inform the render pipeline of what ype this is 
+            "Queue"="Geometry" // changes the render order
             
         }
 
         Pass
         {
-            Cull Off
-            Zwrite Off
-            ZTest LEqual
-            Blend One One // additive
             
             
             // Blend DstColor Zero // multiply
@@ -39,6 +36,7 @@ Shader "Unlit/ShaderTest"
             float4 _ColorB;
             float _StartPoint;
             float _EndPoint;
+            float _WaveAmp;
 
             struct MeshData // data that will be used in vertex shader
             {
@@ -58,11 +56,17 @@ Shader "Unlit/ShaderTest"
 
             Interpolators vert (MeshData v) // pass vertex data to fragment data
             {
-                
                 Interpolators o;
-                o.vertex = UnityObjectToClipPos(v.vertex); // local space to clip space
+
+                float wave = cos((v.uv0.y - _Time.y * 0.1) * 5 * TAU);
+                float wave2 = cos((v.uv0.x - _Time.y * 0.1) * 5 * TAU);
+
+                v.vertex.y = wave * wave2 * _WaveAmp;
+                
+
+                o.vertex = UnityObjectToClipPos(v.vertex); 
                 o.normal = UnityObjectToWorldNormal(v.normal);
-                o.uv = v.uv0; // (v.uv.0 + _Offset) * _Scale; 
+                o.uv = v.uv0;
                 return o;
             }
 
@@ -85,17 +89,9 @@ Shader "Unlit/ShaderTest"
 
             float4 frag (Interpolators i) : SV_Target
             {
-                float xOffset = cos(i.uv.x * TAU * 2) * 0.01;
-                float t = cos((i.uv.y + xOffset - _Time.y * 0.2) * 5 * TAU) * 0.5 + 0.5;
-                t *= 1 - i.uv.y;
-
-                float topBottonRemover = (abs(i.normal.y) < 0.999);
-                float waves = t * topBottonRemover;
-
-                float4 gradient = lerp(_ColorA, _ColorB, i.uv.y);
-
+                float wave = cos((i.uv.y - _Time.y * 0.1) * 5 * TAU) * 0.5 + 0.5;
                 
-                return gradient * waves;
+                return wave;
                 
             }
             ENDCG
