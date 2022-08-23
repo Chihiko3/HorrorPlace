@@ -53,15 +53,27 @@ Shader "Unlit/VertexOffset"
                 float2 uv : TEXCOORD1;
             };
 
+            float GetWave( float2 uv)
+            {
+                float2 uvsCentered = uv * 2 - 1; 
+                float radioDistance = length(uvsCentered);
+                //return float4(radioDistance.xxx , 1);
+                
+                float wave = cos((radioDistance - _Time.y * 0.1) * 5 * TAU) * 0.5 + 0.5;
+                wave *= 1 - radioDistance;
+                return wave;
+            }
 
             Interpolators vert (MeshData v) // pass vertex data to fragment data
             {
                 Interpolators o;
 
-                float wave = cos((v.uv0.y - _Time.y * 0.1) * 5 * TAU);
-                float wave2 = cos((v.uv0.x - _Time.y * 0.1) * 5 * TAU);
+                v.vertex.y = GetWave(v.uv0) * _WaveAmp;
 
-                v.vertex.y = wave * wave2 * _WaveAmp;
+                //float wave = cos((v.uv0.y - _Time.y * 0.1) * 5 * TAU + 3.5);
+                //float wave2 = cos((v.uv0.x - _Time.y * 0.1) * 5 * TAU);
+
+                //v.vertex.y = wave * _WaveAmp;
                 
 
                 o.vertex = UnityObjectToClipPos(v.vertex); 
@@ -86,12 +98,9 @@ Shader "Unlit/VertexOffset"
                 return Lerp(oMin, oMax, t);
             }
 
-
             float4 frag (Interpolators i) : SV_Target
             {
-                float wave = cos((i.uv.y - _Time.y * 0.1) * 5 * TAU) * 0.5 + 0.5;
-                
-                return wave;
+                return GetWave(i.uv);
                 
             }
             ENDCG
